@@ -5,6 +5,7 @@ class BotConfig:
     """Stores bot configuration"""
     api_id = None
     api_hash = None
+    db_str = None
 
     def __setattr__(self, key: str, value: any):
         """Checks if attribute exists and sets it"""
