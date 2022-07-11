@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 
 from telethon.tl.functions.messages import GetHistoryRequest
 from telethon.tl.types import Channel, Message
@@ -40,6 +40,7 @@ async def add_channel(client: TelegramClient, channel_link: str, msg_num: int = 
             msg_list = await read_channel(client, tg_channel, msg_num)
             # Subscribing channel for future checking
             await client(JoinChannelRequest(tg_channel))
+            # TODO: add logging bot subscription
 
             await save_messages(tg_channel.title, msg_list)
 
@@ -63,5 +64,28 @@ async def save_messages(channel_name: str, msg_list: List[Message]):
         targ_channel.messages.append(t_message)
         # Adding to database
         session.add(t_message)
+        # TODO: add logging for the new messages
 
     session.commit()
+    # TODO: add logging on successfull saving
+
+
+async def get_unread_channels(client: TelegramClient) -> List[Tuple[Channel, int]]:
+    """Returns channels that have unread messages"""
+    result = list()
+
+    session = Session(bind=db.engine)
+    # Collecting target channels titles
+    targ_channels_titles = [item.title for item in session.query(db.Channel).all()]
+
+    async for dialog in client.iter_dialogs():
+        if not dialog.is_group and dialog.is_channel:
+            unread_count = dialog.unread_count
+            temp_channel = await client.get_entity(dialog.entity)
+            # Adding target channels with unread messages to the result
+            if unread_count != 0 and temp_channel.title in targ_channels_titles:
+                result.append((temp_channel, unread_count))
+
+    # TODO: add logging on successfull getting unread channels
+
+    return result
