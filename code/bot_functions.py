@@ -7,13 +7,15 @@ import db_configuration as db
 from sqlalchemy.orm import Session
 
 
-async def read_channel(client: TelegramClient, channel_entity: Channel, msg_num: int) -> List[Message]:
+async def read_channel(client: TelegramClient, channel_entity: Channel, msg_num: int,
+                       mark_read: bool = False) -> List[Message]:
     """Get messages from the channel"""
     result = list()
 
     async for msg in client.iter_messages(channel_entity, limit=msg_num):
         result.append(msg)
-        await msg.mark_read()
+        if mark_read:
+            await msg.mark_read()
 
     return result
 
@@ -35,7 +37,7 @@ async def add_channel(client: TelegramClient, channel_link: str, msg_num: int = 
             session.add(new_channel)
             session.commit()
 
-            msg_list = await read_channel(client, tg_channel, msg_num)
+            msg_list = await read_channel(client, tg_channel, msg_num, mark_read=True)
             # Subscribing channel for future checking
             await client(JoinChannelRequest(tg_channel))
             # TODO: add logging bot subscription
