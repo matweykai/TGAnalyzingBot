@@ -6,6 +6,8 @@ class BotConfig:
     api_id = None
     api_hash = None
     db_str = None
+    model_path = "classification_model.mdl"
+    lbl_enc_path = "label_encoder.obj"
 
     def __setattr__(self, key: str, value: any):
         """Checks if attribute exists and sets it"""

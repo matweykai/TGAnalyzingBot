@@ -1,10 +1,16 @@
 import re
 import numpy as np
+from pandas import DataFrame
+import pickle
 from pymorphy2 import MorphAnalyzer
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from string import punctuation
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import LabelEncoder
+from bot_configuration import bot_config
+from os import path
 
 
 rus_stop_words = stopwords.words('russian')     # List of russian stop words
@@ -65,3 +71,25 @@ class TGLinkTransformer(BaseEstimator, TransformerMixin):
 
     def transform(self, X):
         return np.array([re.search(r'\B@\S*', text) is not None for text in X]).reshape(-1, 1)
+
+
+class Classifier:
+    """Singleton classification model for predicting text class labels"""
+    _model: Pipeline
+    _lbl_encoder: LabelEncoder
+
+    def __new__(cls):
+        if not hasattr(cls, 'instance'):
+            cls.instance = super().__new__(cls)
+            # Loading classification model instance from file
+            with open(path.join('..', bot_config.model_path), mode='rb') as file:
+                cls.instance._model = pickle.load(file)
+            # Loading pre-trained label encoder instance from file
+            with open(path.join('..', bot_config.lbl_enc_path), mode='rb') as file:
+                cls.instance._lbl_encoder = pickle.load(file)
+
+        return cls.instance
+
+    def predict(self, X: DataFrame) -> np.array:
+        """Predicts text label for bunch of objects"""
+        return self._lbl_encoder.inverse_transform(self._model.predict(X))
