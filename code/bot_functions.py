@@ -5,19 +5,25 @@ from telethon import TelegramClient
 from telethon.tl.functions.channels import JoinChannelRequest
 import db_configuration as db
 from sqlalchemy.orm import Session
+from classification import *
 
 
 async def read_channel(client: TelegramClient, channel_entity: Channel, msg_num: int,
-                       mark_read: bool = False) -> List[Message]:
+                       mark_read: bool = False) -> List[Tuple[Message, str]]:
     """Get messages from the channel"""
-    result = list()
+    msg_list = list()
 
     async for msg in client.iter_messages(channel_entity, limit=msg_num):
-        result.append(msg)
+        if msg.message is not None and msg.message != '':
+            msg_list.append(msg)
         if mark_read:
             await msg.mark_read()
 
-    return result
+    classifier = Classifier()
+
+    text_classes = classifier.predict(DataFrame.from_dict({"text": [msg.message for msg in msg_list]}))
+
+    return list(zip(msg_list, text_classes))
 
 
 async def add_channel(client: TelegramClient, channel_link: str, msg_num: int = 100):
@@ -53,14 +59,14 @@ async def add_channel(client: TelegramClient, channel_link: str, msg_num: int = 
         pass
 
 
-async def save_messages(channel_name: str, msg_list: List[Message]):
+async def save_messages(channel_name: str, msg_list: List[Tuple[Message, str]]):
     """Saves messages to database"""
     session = Session(bind=db.engine)
     targ_channel: db.Channel
     targ_channel = session.query(db.Channel).where(db.Channel.title == channel_name).first()
 
-    for msg in msg_list:
-        t_message = db.Message(text=msg.message)
+    for msg, text_class in msg_list:
+        t_message = db.Message(text=msg.message, text_class=text_class)
         targ_channel.messages.append(t_message)
         # Adding to database
         session.add(t_message)

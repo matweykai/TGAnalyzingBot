@@ -25,6 +25,7 @@ class Message(Base):
     text = Column(String)
     channel_id = Column(Integer, ForeignKey("channel.id"))
     channel = relationship("Channel", back_populates="messages")
+    text_class = Column(String)
 
     def __repr__(self):
         return f"Message(id={self.id}, text_len={len(self.text) if self.text is not None else 0}, " \
