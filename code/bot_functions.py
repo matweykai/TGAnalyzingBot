@@ -6,6 +6,7 @@ from telethon.tl.functions.channels import JoinChannelRequest
 import db_configuration as db
 from sqlalchemy.orm import Session
 from classification import *
+from logger import Logger
 
 
 async def read_channel(client: TelegramClient, channel_entity: Channel, msg_num: int,
@@ -23,6 +24,8 @@ async def read_channel(client: TelegramClient, channel_entity: Channel, msg_num:
 
     text_classes = classifier.predict(DataFrame.from_dict({"text": [msg.message for msg in msg_list]}))
 
+    Logger().info(f'Successfully read {len(msg_list)} from {channel_entity.title} channel')
+
     return list(zip(msg_list, text_classes))
 
 
@@ -35,7 +38,7 @@ async def add_channel(client: TelegramClient, channel_link: str, msg_num: int = 
         if type(tg_channel) is Channel:
 
             if session.query(db.Channel).where(db.Channel.tg_link == channel_link).first():
-                # TODO: add logging or raising exception
+                Logger().warning(f"Channel '{channel_link}' is already saved. New messages won't be loaded")
                 return
 
             new_channel = db.Channel(title=tg_channel.title, tg_link=channel_link)
@@ -46,16 +49,16 @@ async def add_channel(client: TelegramClient, channel_link: str, msg_num: int = 
             msg_list = await read_channel(client, tg_channel, msg_num, mark_read=True)
             # Subscribing channel for future checking
             await client(JoinChannelRequest(tg_channel))
-            # TODO: add logging bot subscription
+            Logger().info(f"Successfully subscribed channel '{channel_link}'")
 
             await save_messages(tg_channel.title, msg_list)
 
         else:
             raise ValueError(f'Entity with link {channel_link} is not a channel')
 
-    except ValueError:
+    except ValueError as e:
         # Channel doesn't exist
-        # TODO: add logging or exception raising
+        Logger().exception(f"Channel with link {channel_link} doesn't exist")
         pass
 
 
@@ -70,10 +73,9 @@ async def save_messages(channel_name: str, msg_list: List[Tuple[Message, str]]):
         targ_channel.messages.append(t_message)
         # Adding to database
         session.add(t_message)
-        # TODO: add logging for the new messages
 
     session.commit()
-    # TODO: add logging on successfull saving
+    Logger().info(f'{len(msg_list)} new messages from {channel_name} were saved successfully')
 
 
 async def get_unread_channels(client: TelegramClient) -> List[Tuple[Channel, int]]:
@@ -92,6 +94,6 @@ async def get_unread_channels(client: TelegramClient) -> List[Tuple[Channel, int
             if unread_count != 0 and temp_channel.title in targ_channels_titles:
                 result.append((temp_channel, unread_count))
 
-    # TODO: add logging on successfull getting unread channels
+    Logger().info(f"Found {len(result)} unread channels: {[item[0].title for item in result]}")
 
     return result

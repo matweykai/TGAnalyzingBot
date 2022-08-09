@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 import click as cli
 from classification import *
 from logger import Logger
+import os
 
 # Global client object
 client = TelegramClient('anon', bot_config.api_id, bot_config.api_hash)
@@ -24,6 +25,8 @@ async def update_handler():
 @cli.option('--add-channel', '-a', 'new_channel', default=None)
 @cli.option('--update', '-u', default=None, is_flag=True)
 def main(new_channel, update):
+    Logger().info(f"Start program from {os.curdir}")
+
     with client:
         if new_channel is not None:
             # Adding new channel and read 300 latest news from it
@@ -42,4 +45,9 @@ def main(new_channel, update):
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as e:
+        Logger().critical(e)
+
+    Logger().info('Program finished work')
